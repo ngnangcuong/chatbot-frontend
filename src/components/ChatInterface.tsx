@@ -46,16 +46,49 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
         setIsLoading(true);
 
         try {
-            const response = await axios.post('http://localhost:8000/api/chat', {
-                session_id: sessionId,
-                message: userMessage
+            const response = await fetch('http://localhost:8000/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    message: userMessage
+                })
             });
 
-            setMessages(prev => [...prev, { role: 'ai', content: response.data.response }]);
+            if (!response.body) throw new Error("No response body");
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder("utf-8");
+            let startedStreaming = false;
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                if (!startedStreaming) {
+                    setIsLoading(false); // Hide the loading indicator ONLY when first bytes arrive
+                    setMessages(prev => [...prev, { role: 'ai', content: "" }]);
+                    startedStreaming = true;
+                }
+
+                const chunk = decoder.decode(value, { stream: true });
+                setMessages(prev => {
+                    const newMessages = [...prev];
+                    const lastMessage = { ...newMessages[newMessages.length - 1] };
+                    lastMessage.content += chunk;
+                    newMessages[newMessages.length - 1] = lastMessage;
+                    return newMessages;
+                });
+            }
+
+            if (!startedStreaming) {
+                setIsLoading(false);
+                setMessages(prev => [...prev, { role: 'ai', content: "Backend took too long or returned empty response." }]);
+            }
+
         } catch (error) {
             console.error(error);
             setMessages(prev => [...prev, { role: 'ai', content: "Sorry, I encountered an error processing your request." }]);
-        } finally {
             setIsLoading(false);
         }
     };
