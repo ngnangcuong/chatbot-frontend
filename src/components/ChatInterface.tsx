@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Send, User, Cpu } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Message {
     role: 'user' | 'ai';
@@ -151,8 +153,14 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
                                     border: msg.role === 'ai' ? '1px solid var(--border-color)' : 'none'
                                 }}
                             >
-                                <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
-                                    {msg.content}
+                                <div style={{ lineHeight: 1.6 }} className={msg.role === 'ai' ? 'markdown-body' : ''}>
+                                    {msg.role === 'ai' ? (
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                            {msg.content}
+                                        </ReactMarkdown>
+                                    ) : (
+                                        <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</div>
+                                    )}
                                 </div>
                             </div>
                         </div>
